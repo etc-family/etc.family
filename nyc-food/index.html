@@ -1,0 +1,67 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ETC NYC Food Map</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+html,body,#map{height:100%;margin:0;font-family:system-ui,sans-serif}
+.panel{position:absolute;top:10px;right:10px;z-index:1000;background:#fff;padding:10px 12px;border-radius:8px;box-shadow:0 1px 6px #0004;font-size:13px;max-width:220px}
+.panel label{display:block;margin:3px 0}
+.dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:5px;vertical-align:middle}
+.locate{position:absolute;bottom:24px;right:10px;z-index:1000;background:#fff;border:0;border-radius:8px;box-shadow:0 1px 6px #0004;padding:9px 12px;font-size:14px;cursor:pointer}
+.popup b{font-size:15px}.popup .muted{color:#777;font-size:12px}.popup td{padding:1px 6px 1px 0;vertical-align:top}
+</style></head><body>
+<div id="map"></div>
+<button class="locate" id="locate">📍 Show my location</button>
+<div class="panel">
+  <div><b>Amol rank</b></div>
+  <div id="legend"></div>
+  <hr>
+  <label><input type="checkbox" id="showClosed" checked> Show closed places</label>
+  <label><input type="checkbox" id="onlyVisited"> Only visited</label>
+  <label>Min rank <select id="minRank"><option value="0">any</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label>
+  <div id="count" class="muted"></div>
+</div>
+<script>
+const COLORS={5:'#1a9850',4:'#91cf60',3:'#fee08b',2:'#fc8d59',1:'#d73027'};
+const UNRANKED='#4575b4';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const map=L.map('map').setView([40.725,-73.96],12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+document.getElementById('legend').innerHTML=[5,4,3,2,1].map(r=>`<div><span class="dot" style="background:${COLORS[r]}"></span>${r}</div>`).join('')+`<div><span class="dot" style="background:${UNRANKED}"></span>not yet ranked</div>`;
+const layer=L.layerGroup().addTo(map);
+let data;
+function color(p){const r=parseFloat(p.rank);return isNaN(r)?UNRANKED:COLORS[Math.floor(r)]||UNRANKED}
+function priceText(p){return p.price.split(/(\s*[-,]\s*)/).map(t=>data.legend[t.trim()]??t).join('')}
+function popup(p){
+  const rows=[['Recommended by',p.rec],['Area',p.loc],['Price',p.price&&priceText(p)],['Visited',p.visited?'yes':''],['Amol rank',p.rank],['Notes',p.notes]].filter(r=>r[1]);
+  const gm='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.official+' '+p.address);
+  return `<div class="popup"><b>${esc(p.official)}</b>${p.status==='closed'?' <span style="color:#c00">(reported closed)</span>':''}
+  ${p.official.toLowerCase()!==p.name.toLowerCase()?`<div class="muted">sheet: ${esc(p.name)}</div>`:''}
+  <div class="muted">${esc(p.address)}</div>
+  <table>${rows.map(r=>`<tr><td class="muted">${r[0]}</td><td>${esc(r[1])}</td></tr>`).join('')}</table>
+  <a href="${gm}" target="_blank" rel="noopener">Open in Google Maps</a></div>`;
+}
+function render(){
+  const showClosed=document.getElementById('showClosed').checked, onlyVisited=document.getElementById('onlyVisited').checked, min=+document.getElementById('minRank').value;
+  layer.clearLayers();let n=0;
+  for(const p of data.points){
+    if(!showClosed&&p.status==='closed')continue;
+    if(onlyVisited&&!p.visited)continue;
+    if(min&&!(parseFloat(p.rank)>=min))continue;
+    const closed=p.status==='closed';
+    L.circleMarker([p.lat,p.lng],{radius:7,color:closed?'#555':'#222',weight:closed?2:1,dashArray:closed?'3':null,fillColor:color(p),fillOpacity:closed?0.3:0.9}).bindPopup(popup(p)).bindTooltip(p.official).addTo(layer);n++;
+  }
+  document.getElementById('count').textContent=n+' places shown';
+}
+let me=null,meCircle=null,centered=false;
+document.getElementById('locate').addEventListener('click',()=>{centered=false;map.locate({watch:true,enableHighAccuracy:true})});
+map.on('locationfound',e=>{
+  if(!me){me=L.circleMarker(e.latlng,{radius:8,color:'#fff',weight:3,fillColor:'#1a73e8',fillOpacity:1}).bindTooltip('You are here').addTo(map);meCircle=L.circle(e.latlng,{radius:e.accuracy,color:'#1a73e8',weight:1,fillOpacity:0.1,interactive:false}).addTo(map)}
+  else{me.setLatLng(e.latlng);meCircle.setLatLng(e.latlng).setRadius(e.accuracy)}
+  if(!centered){map.setView(e.latlng,Math.max(map.getZoom(),15));centered=true}
+});
+map.on('locationerror',e=>alert('Could not get your location: '+e.message));
+fetch('points.json?v='+Date.now()).then(r=>r.json()).then(d=>{data=d;render()});
+for(const id of ['showClosed','onlyVisited','minRank'])document.getElementById(id).addEventListener('change',render);
+</script></body></html>
