@@ -4256,6 +4256,23 @@
    "status": "open",
    "confidence": "high",
    "geo_note": "East Village location (one of two NYC locations, other in Clinton Hill, Brooklyn)"
+  },
+  {
+   "row": 259,
+   "name": "Rudy's",
+   "official": "Rudy's Bar & Grill",
+   "address": "627 9th Ave, New York, NY 10036",
+   "lat": 40.759938,
+   "lng": -73.991619,
+   "rec": "dex",
+   "loc": "Manhattan, Hell's Kitchen",
+   "price": "",
+   "visited": false,
+   "rank": "",
+   "notes": "",
+   "status": "open",
+   "confidence": "high",
+   "geo_note": "confirmed by Amol"
   }
  ]
 }
