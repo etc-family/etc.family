@@ -19,6 +19,7 @@ html,body,#map{height:100%;margin:0;font-family:system-ui,sans-serif}
   <hr>
   <label><input type="checkbox" id="showClosed" checked> Show closed places</label>
   <label><input type="checkbox" id="onlyVisited"> Only visited</label>
+  <label>Recommended by <select id="recBy"><option value="">anyone</option></select></label>
   <label>Min rank <select id="minRank"><option value="0">any</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></label>
   <div id="count" class="muted"></div>
 </div>
@@ -31,10 +32,19 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,att
 document.getElementById('legend').innerHTML=[5,4,3,2,1].map(r=>`<div><span class="dot" style="background:${COLORS[r]}"></span>${r}</div>`).join('')+`<div><span class="dot" style="background:${UNRANKED}"></span>not yet ranked</div>`;
 const layer=L.layerGroup().addTo(map);
 let data;
+const nameKey=n=>n.replace(/\(.*?\)/g,'').trim().toLowerCase();
+const recommenders=p=>(p.rec||'Amol').split(/[\/,]/).map(nameKey).filter(Boolean);
+const titleCase=k=>k.replace(/\b\w/g,c=>c.toUpperCase());
+function fillRecommenders(){
+  const counts={};
+  for(const p of data.points)for(const k of new Set(recommenders(p)))counts[k]=(counts[k]||0)+1;
+  const sel=document.getElementById('recBy');
+  for(const [k,n] of Object.entries(counts).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0])))sel.add(new Option(`${titleCase(k)} (${n})`,k));
+}
 function color(p){const r=parseFloat(p.rank);return isNaN(r)?UNRANKED:COLORS[Math.floor(r)]||UNRANKED}
 function priceText(p){return p.price.split(/(\s*[-,]\s*)/).map(t=>data.legend[t.trim()]??t).join('')}
 function popup(p){
-  const rows=[['Recommended by',p.rec],['Area',p.loc],['Price',p.price&&priceText(p)],['Visited',p.visited?'yes':''],['Amol rank',p.rank],['Notes',p.notes]].filter(r=>r[1]);
+  const rows=[['Recommended by',p.rec||'Amol'],['Area',p.loc],['Price',p.price&&priceText(p)],['Visited',p.visited?'yes':''],['Amol rank',p.rank],['Notes',p.notes]].filter(r=>r[1]);
   const gm='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.official+' '+p.address);
   return `<div class="popup"><b>${esc(p.official)}</b>${p.status==='closed'?' <span style="color:#c00">(reported closed)</span>':''}
   ${p.official.toLowerCase()!==p.name.toLowerCase()?`<div class="muted">sheet: ${esc(p.name)}</div>`:''}
@@ -43,11 +53,12 @@ function popup(p){
   <a href="${gm}" target="_blank" rel="noopener">Open in Google Maps</a></div>`;
 }
 function render(){
-  const showClosed=document.getElementById('showClosed').checked, onlyVisited=document.getElementById('onlyVisited').checked, min=+document.getElementById('minRank').value;
+  const showClosed=document.getElementById('showClosed').checked, onlyVisited=document.getElementById('onlyVisited').checked, min=+document.getElementById('minRank').value, rec=document.getElementById('recBy').value;
   layer.clearLayers();let n=0;
   for(const p of data.points){
     if(!showClosed&&p.status==='closed')continue;
     if(onlyVisited&&!p.visited)continue;
+    if(rec&&!recommenders(p).includes(rec))continue;
     if(min&&!(parseFloat(p.rank)>=min))continue;
     const closed=p.status==='closed';
     L.circleMarker([p.lat,p.lng],{radius:7,color:closed?'#555':'#222',weight:closed?2:1,dashArray:closed?'3':null,fillColor:color(p),fillOpacity:closed?0.3:0.9}).bindPopup(popup(p)).bindTooltip(p.official).addTo(layer);n++;
@@ -62,6 +73,6 @@ map.on('locationfound',e=>{
   if(!centered){map.setView(e.latlng,Math.max(map.getZoom(),15));centered=true}
 });
 map.on('locationerror',e=>alert('Could not get your location: '+e.message));
-fetch('points.json?v='+Date.now()).then(r=>r.json()).then(d=>{data=d;render()});
-for(const id of ['showClosed','onlyVisited','minRank'])document.getElementById(id).addEventListener('change',render);
+fetch('points.json?v='+Date.now()).then(r=>r.json()).then(d=>{data=d;fillRecommenders();render()});
+for(const id of ['showClosed','onlyVisited','minRank','recBy'])document.getElementById(id).addEventListener('change',render);
 </script></body></html>
