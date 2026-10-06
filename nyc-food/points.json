@@ -4477,6 +4477,23 @@
    "status": "open",
    "confidence": "medium",
    "geo_note": "'morays express' most plausibly refers to 'More Express', a Japanese/Thai sushi spot on Grove St (one block from Uncle Momo and Tino's). No restaurant literally named 'Moray's Express' was found in Jersey City; this is a likely mis-hearing/misspelling match, not a confirmed exact name."
+  },
+  {
+   "row": 274,
+   "name": "corima",
+   "official": "Corima",
+   "address": "3 Allen St, New York, NY 10002",
+   "lat": 40.714713,
+   "lng": -73.992901,
+   "rec": "mia",
+   "loc": "",
+   "price": "",
+   "visited": false,
+   "rank": "",
+   "notes": "",
+   "status": "open",
+   "confidence": "high",
+   "geo_note": ""
   }
  ]
 }
